@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+.turbo/
+
+# Env
+.env
+.env.local
+.env*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Supabase
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+# Flutter
+apps/customer-app/.dart_tool/
+apps/customer-app/.flutter-plugins
+apps/customer-app/.flutter-plugins-dependencies
+apps/customer-app/build/
+apps/customer-app/.pub-cache/
+apps/customer-app/.pub/
+apps/customer-app/ios/Pods/
+apps/customer-app/android/.gradle/
+apps/customer-app/**/GeneratedPluginRegistrant.*
+
+# Testing
+coverage/
+
+# TS incremental build info
+*.tsbuildinfo
