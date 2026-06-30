@@ -29,7 +29,7 @@ khade/
 | Backend / DB / Auth / Storage | Supabase (PostgreSQL + PostGIS) |
 | Maps | Google Maps |
 | Push | Firebase Cloud Messaging |
-| Payments | Stripe (tokenised) + pluggable local gateway |
+| Payments | Paystack (Nigeria — cards, bank transfer, USSD) via Supabase Edge Functions |
 | Analytics | Firebase Analytics |
 | AI (V2 only) | OpenAI / pluggable LLM provider |
 
@@ -137,9 +137,44 @@ These are stubbed/awaiting keys (see `.env.example` files):
 
 - Supabase project URL + anon + service-role keys
 - Google Maps API key (map view, nearby)
-- Stripe secret/publishable/webhook keys (payment capture + webhook → `payments`)
+- **Paystack secret key** — set as a Supabase function secret (see Payments below)
 - Firebase project (FCM push delivery worker + Analytics)
 - OpenAI key (V2 AI features only — not used in MVP)
+
+## Payments (Paystack)
+
+KHADE launches in Nigeria, so payments run through **Paystack** (Stripe doesn't
+support Nigerian businesses). The flow is fully server-side — the Paystack
+**secret key never reaches the apps**:
+
+```
+Flutter app ──▶ paystack-initialize (edge fn) ──▶ Paystack checkout URL
+   │                                                      │
+   └──◀ opens hosted checkout (card / transfer / USSD) ◀──┘
+                          │ on success Paystack →
+        paystack-webhook (HMAC-verified)  ── marks payment paid,
+        paystack-verify  (client fallback) ── confirms booking, awards loyalty
+```
+
+Three edge functions are **already deployed** to project `khadeapp`:
+`paystack-initialize`, `paystack-verify` (JWT-guarded), and `paystack-webhook`
+(HMAC-SHA512 signature, no JWT). Amounts are charged in **kobo** (NGN minor
+unit). Settlement is idempotent — the webhook and verify path can't double-credit
+(unique `gateway_reference`, status-guarded updates).
+
+**To go live, set the secret and webhook (one-time):**
+
+```bash
+# 1. Paystack Dashboard → Settings → API Keys & Webhooks → copy the Secret Key
+supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx --project-ref qfxdatptvypebnntzvhh
+
+# 2. In Paystack, set the webhook URL to:
+#    https://qfxdatptvypebnntzvhh.functions.supabase.co/paystack-webhook
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are injected
+into edge functions automatically. Use Paystack **test** keys with test cards
+first; the function source lives in `supabase/functions/`.
 
 ## Assumptions to confirm (flagged, not silently chosen)
 
@@ -159,8 +194,9 @@ email/password + Google + role handling (Phase 2), customer discovery/profile/
 booking with real availability (Phase 3 core), business dashboard/appointments/
 services/staff/customers/analytics (Phase 4), and the full admin console
 (Phase 5). Cross-cutting (Phase 6) — loading/empty/error states, server-side
-validation, audit logging, fraud hook — is in place; FCM delivery worker, Stripe
-webhook capture, and chart rendering are the named follow-up slices.
+validation, audit logging, fraud hook — is in place. **Paystack payments are
+wired end-to-end** (booking → checkout → webhook/verify → confirmed + loyalty).
+FCM delivery worker and analytics chart rendering are the named follow-up slices.
 
 Out of scope for MVP (extension points noted in code, e.g.
 `packages/shared/src/recommendations.ts`): AI concierge, smart recommendations,

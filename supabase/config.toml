@@ -37,3 +37,14 @@ enable_confirmations = true
 [storage]
 enabled = true
 file_size_limit = "50MiB"
+
+# ── Edge functions (Paystack) ────────────────────────────────────────────────
+[functions.paystack-initialize]
+verify_jwt = true
+
+[functions.paystack-verify]
+verify_jwt = true
+
+# Webhook is authenticated by Paystack's HMAC signature, not a Supabase JWT.
+[functions.paystack-webhook]
+verify_jwt = false

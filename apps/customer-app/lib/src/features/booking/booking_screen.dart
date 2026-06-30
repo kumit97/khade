@@ -3,7 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/khade_repository.dart';
+import '../../data/payment_service.dart';
 import '../../models.dart';
+import 'payment_webview_screen.dart';
 
 /// Booking flow: pick staff → date → real time slot → confirm.
 /// Time slots come from the `available_slots` RPC so double-booking is
@@ -64,7 +66,8 @@ class _BookingScreenState extends State<BookingScreen> {
     if (userId == null || _selectedSlot == null) return;
     setState(() => _booking = true);
     try {
-      await _repo.createBooking(
+      // 1. Create the (pending, unpaid) booking.
+      final bookingId = await _repo.createBooking(
         customerId: userId,
         businessId: widget.business.id,
         serviceId: widget.service.id,
@@ -73,15 +76,42 @@ class _BookingScreenState extends State<BookingScreen> {
         price: widget.service.price,
         currency: widget.service.currency,
       );
+
+      // 2. Start the Paystack transaction (server-side).
+      final payments = PaymentService(Supabase.instance.client);
+      final init = await payments.initialize(bookingId);
+
+      // 3. Open the hosted checkout and wait for the redirect.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking requested! 🎉')),
+      final completed = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentWebViewScreen(authorizationUrl: init.authorizationUrl),
+        ),
       );
-      Navigator.pop(context);
+
+      if (!mounted) return;
+      if (completed == true) {
+        // 4. Confirm the charge (webhook is the source of truth; this is a
+        //    fast-path fallback).
+        final ok = await payments.verify(init.reference);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'Payment successful — booking confirmed! 🎉'
+              : 'Payment received. Your booking will confirm shortly.'),
+        ));
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Payment cancelled. Your booking is saved as pending.'),
+        ));
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not book: $e')),
+        SnackBar(content: Text('Could not complete booking: $e')),
       );
     } finally {
       if (mounted) setState(() => _booking = false);
@@ -162,12 +192,13 @@ class _BookingScreenState extends State<BookingScreen> {
           const SizedBox(height: 28),
           FilledButton(
             onPressed: (_selectedSlot == null || _booking) ? null : _confirm,
-            child: Text(_booking ? 'Booking…' : 'Confirm booking'),
+            child: Text(_booking ? 'Processing…' : 'Pay & confirm booking'),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Payment is collected after the business confirms. Card payments use '
-            'Stripe tokenisation — card data never touches KHADE servers.',
+            'Secure payment via Paystack (cards, bank transfer, USSD). Card data '
+            'never touches KHADE servers — the Paystack secret key stays in the '
+            'backend.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],

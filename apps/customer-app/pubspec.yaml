@@ -13,7 +13,8 @@ dependencies:
   supabase_flutter: ^2.5.0          # Auth + DB + Storage
   google_maps_flutter: ^2.6.0       # Map view / nearby
   geolocator: ^12.0.0               # Device location for nearby search
-  flutter_stripe: ^11.0.0           # Card payments (tokenised)
+  webview_flutter: ^4.7.0           # Paystack checkout (hosted page)
+  url_launcher: ^6.3.0
   firebase_core: ^3.1.0
   firebase_messaging: ^15.0.0       # Push notifications
   firebase_analytics: ^11.0.0

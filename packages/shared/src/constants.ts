@@ -7,8 +7,40 @@ export const DEFAULT_COMMISSION_PCT = Number(
   process.env.KHADE_PLATFORM_COMMISSION_PCT ?? 15,
 );
 
-/** Default currency when a business/service does not specify one. */
-export const DEFAULT_CURRENCY = process.env.KHADE_DEFAULT_CURRENCY ?? 'USD';
+/** Default currency when a business/service does not specify one.
+ *  NGN — KHADE launches in Nigeria; Paystack settles in NGN. */
+export const DEFAULT_CURRENCY = process.env.KHADE_DEFAULT_CURRENCY ?? 'NGN';
+
+/** Supported currencies (Paystack: NGN, GHS, ZAR, KES, USD). */
+export const SUPPORTED_CURRENCIES = ['NGN', 'GHS', 'ZAR', 'KES', 'USD'] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/** Paystack (and most African gateways) charge in the minor unit (kobo for
+ *  NGN, pesewas for GHS, cents for ZAR/KES/USD): multiply the major amount by
+ *  100. Use these instead of ad-hoc `* 100` so rounding stays consistent. */
+export function toMinorUnits(amount: number): number {
+  return Math.round(amount * 100);
+}
+export function fromMinorUnits(minor: number): number {
+  return Math.round(minor) / 100;
+}
+
+/** Currency symbols for display. */
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  NGN: '₦',
+  GHS: 'GH₵',
+  ZAR: 'R',
+  KES: 'KSh',
+  USD: '$',
+};
+
+export function formatMoney(amount: number, currency = DEFAULT_CURRENCY): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? `${currency} `;
+  return `${symbol}${amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 /** Default free-cancellation window (hours before start). GUESS: 24h. */
 export const DEFAULT_CANCELLATION_WINDOW_HOURS = 24;

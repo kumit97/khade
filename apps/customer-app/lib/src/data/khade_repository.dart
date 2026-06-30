@@ -77,9 +77,10 @@ class KhadeRepository {
         .toList();
   }
 
-  /// Create a booking. The DB derives end time, enforces no double-booking via
-  /// the exclusion constraint, and runs the fraud-check trigger.
-  Future<void> createBooking({
+  /// Create a booking and return its id. The DB derives end time, enforces no
+  /// double-booking via the exclusion constraint, and runs the fraud-check
+  /// trigger.
+  Future<String> createBooking({
     required String customerId,
     required String businessId,
     required String serviceId,
@@ -89,7 +90,7 @@ class KhadeRepository {
     required String currency,
     String? notes,
   }) async {
-    await _db.from('bookings').insert({
+    final row = await _db.from('bookings').insert({
       'customer_id': customerId,
       'business_id': businessId,
       'service_id': serviceId,
@@ -101,7 +102,8 @@ class KhadeRepository {
       'price': price,
       'currency': currency,
       'notes': notes,
-    });
+    }).select('id').single();
+    return row['id'] as String;
   }
 
   Future<List<Map<String, dynamic>>> myBookings(String customerId) async {
