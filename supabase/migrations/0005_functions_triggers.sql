@@ -196,7 +196,7 @@ returns table (
   rating_avg numeric,
   distance_meters double precision
 )
-language sql stable as $$
+language sql stable set search_path = public, extensions as $$
   select b.id, b.name, b.category, b.rating_avg,
          st_distance(b.location, st_point(p_lng, p_lat)::geography) as distance_meters
   from public.businesses b

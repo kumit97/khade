@@ -37,16 +37,27 @@ khade/
 
 ### 1. Database (Supabase)
 
-Local stack:
+**The hosted project is already provisioned and migrated.** Project `khadeapp`
+(ref `qfxdatptvypebnntzvhh`, region eu-west-1) has all 7 migrations applied —
+verify with `supabase migration list` after linking, or in the dashboard.
+
+To work locally instead:
 
 ```bash
 supabase start          # boots Postgres + Studio + Auth locally
 supabase db reset       # applies migrations + seed.sql
 ```
 
-Hosted: link a project (`supabase link`) and `supabase db push`. Phone-OTP,
-Google and Apple auth providers are configured in the Supabase dashboard (they
-require provider secrets) — see **Auth setup** below.
+To push further migrations to the hosted project: `supabase link --project-ref
+qfxdatptvypebnntzvhh` then `supabase db push`. Phone-OTP, Google and Apple auth
+providers are configured in the Supabase dashboard (they require provider
+secrets) — see **Auth setup** below.
+
+> **Known advisor caveat:** `public.spatial_ref_sys` (a PostGIS reference table)
+> reports `rls_disabled_in_public`. It is owned by the PostGIS extension — we
+> cannot enable RLS on it, and PostGIS does not support being moved out of the
+> `public` schema. It contains only static SRID data. This lint is unavoidable
+> on Supabase + PostGIS and is safe to accept.
 
 The migrations create every table from the spec with **Row-Level Security on
 each one**, Postgres enums for all status fields, geospatial nearby-search,
