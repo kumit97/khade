@@ -7,7 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, json } from '../_shared/cors.ts';
-import { serviceClient } from '../_shared/settle.ts';
+import { serviceClient, getPaystackSecret } from '../_shared/settle.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -54,6 +54,7 @@ Deno.serve(async (req) => {
     if (amountMinor <= 0) return json({ error: 'invalid_amount' }, 400);
 
     const reference = `khade-${crypto.randomUUID()}`;
+    const paystackSecret = await getPaystackSecret(db);
 
     // Record the pending payment (idempotent reference via unique index).
     const { error: payErr } = await db.from('payments').insert({
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
     const resp = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${Deno.env.get('PAYSTACK_SECRET_KEY')}`,
+        Authorization: `Bearer ${paystackSecret}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

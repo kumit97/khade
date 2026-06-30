@@ -7,7 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, json } from '../_shared/cors.ts';
-import { serviceClient, settleSuccessfulCharge } from '../_shared/settle.ts';
+import { serviceClient, settleSuccessfulCharge, getPaystackSecret } from '../_shared/settle.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -28,10 +28,13 @@ Deno.serve(async (req) => {
     const { reference } = await req.json();
     if (!reference) return json({ error: 'reference_required' }, 400);
 
+    const db = serviceClient();
+    const paystackSecret = await getPaystackSecret(db);
+
     // Ask Paystack for the authoritative transaction status.
     const resp = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      { headers: { Authorization: `Bearer ${Deno.env.get('PAYSTACK_SECRET_KEY')}` } },
+      { headers: { Authorization: `Bearer ${paystackSecret}` } },
     );
     const result = await resp.json();
     if (!result?.status) {
@@ -43,7 +46,6 @@ Deno.serve(async (req) => {
       return json({ status: data?.status ?? 'pending', reference });
     }
 
-    const db = serviceClient();
     const settle = await settleSuccessfulCharge(db, data);
     return json({ status: 'success', settle, reference });
   } catch (e) {

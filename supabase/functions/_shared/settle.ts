@@ -13,6 +13,21 @@ export function serviceClient(): SupabaseClient {
   );
 }
 
+/**
+ * Resolve the Paystack secret key. Prefers the PAYSTACK_SECRET_KEY function
+ * secret (set via `supabase secrets set`); falls back to Supabase Vault via the
+ * service-role-only get_vault_secret() accessor. `db` must be a service client.
+ */
+export async function getPaystackSecret(db: SupabaseClient): Promise<string> {
+  const envKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+  if (envKey) return envKey;
+  const { data, error } = await db.rpc('get_vault_secret', {
+    p_name: 'PAYSTACK_SECRET_KEY',
+  });
+  if (error || !data) throw new Error('paystack_secret_unavailable');
+  return data as string;
+}
+
 export interface SettleResult {
   status: 'paid' | 'already_paid' | 'amount_mismatch' | 'not_found' | 'ignored';
   bookingId?: string;

@@ -4,13 +4,14 @@
 //
 // deno-lint-ignore-file no-explicit-any
 import { json } from '../_shared/cors.ts';
-import { serviceClient, settleSuccessfulCharge } from '../_shared/settle.ts';
+import { serviceClient, settleSuccessfulCharge, getPaystackSecret } from '../_shared/settle.ts';
 import { createHmac } from 'node:crypto';
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  const secret = Deno.env.get('PAYSTACK_SECRET_KEY')!;
+  const db = serviceClient();
+  const secret = await getPaystackSecret(db);
   const raw = await req.text();
   const signature = req.headers.get('x-paystack-signature') ?? '';
 
@@ -30,7 +31,6 @@ Deno.serve(async (req) => {
   // Only successful charges settle a booking. Acknowledge everything else 200
   // so Paystack does not retry.
   if (event?.event === 'charge.success') {
-    const db = serviceClient();
     const result = await settleSuccessfulCharge(db, event.data);
     return json({ received: true, result });
   }

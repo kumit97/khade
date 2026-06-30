@@ -162,19 +162,37 @@ Three edge functions are **already deployed** to project `khadeapp`:
 unit). Settlement is idempotent — the webhook and verify path can't double-credit
 (unique `gateway_reference`, status-guarded updates).
 
-**To go live, set the secret and webhook (one-time):**
+**Secret handling.** The Paystack secret key is read at runtime by
+`getPaystackSecret()`, which prefers the `PAYSTACK_SECRET_KEY` function secret
+and falls back to **Supabase Vault** via the `service_role`-only
+`get_vault_secret()` accessor (migration 0009). On the live `khadeapp` project a
+**test** secret is already stored in Vault, so the functions work as-is. To
+rotate or use the standard env approach instead:
 
 ```bash
-# 1. Paystack Dashboard → Settings → API Keys & Webhooks → copy the Secret Key
-supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx --project-ref qfxdatptvypebnntzvhh
+supabase secrets set PAYSTACK_SECRET_KEY=sk_live_xxx --project-ref qfxdatptvypebnntzvhh
+# …or update the Vault secret:
+#   select vault.update_secret(id, 'sk_live_xxx') ...
+```
 
-# 2. In Paystack, set the webhook URL to:
-#    https://qfxdatptvypebnntzvhh.functions.supabase.co/paystack-webhook
+**One step still required — register the webhook** (Paystack → Settings → API
+Keys & Webhooks → Webhook URL):
+
+```
+https://qfxdatptvypebnntzvhh.functions.supabase.co/paystack-webhook
 ```
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are injected
-into edge functions automatically. Use Paystack **test** keys with test cards
-first; the function source lives in `supabase/functions/`.
+into edge functions automatically. Test card: `4084 0840 8408 4081`, any future
+expiry, CVV `408`. Function source lives in `supabase/functions/`.
+
+### Demo data (already seeded on khadeapp)
+
+A verified business **Glow Studio Lagos** (Victoria Island) with staff *Maya* and
+three NGN services (Signature Haircut ₦15,000 · Bridal Makeup ₦65,000 · Gel
+Manicure ₦8,000) is seeded so the customer app shows real, bookable content.
+Sign up as a customer in-app, pick a service → time slot → pay with the Paystack
+test card to exercise the full flow.
 
 ## Assumptions to confirm (flagged, not silently chosen)
 
